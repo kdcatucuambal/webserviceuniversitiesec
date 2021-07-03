@@ -5,7 +5,11 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -16,9 +20,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-
 import com.universities.ecuador.apirest.models.entities.University;
 import com.universities.ecuador.apirest.models.services.IUniversityService;
 
@@ -28,14 +32,20 @@ import com.universities.ecuador.apirest.models.services.IUniversityService;
 public class UniversityRestController {
 
 	@Autowired
+	@Qualifier("paginator")
 	private IUniversityService univsService;
-
+	
 	@GetMapping("/universities")
 	@ResponseStatus(HttpStatus.OK)
-	public List<University> getAll() {
-		return this.univsService.findAll();
+	public List<University> getAll(@RequestParam(name = "page", defaultValue = "-1") int page) {
+		if (page == -1) {
+			return this.univsService.findAll();
+		}
+		Pageable pageRequest = PageRequest.of(page, 5);
+		Page<University> unvs = this.univsService.findAll(pageRequest);
+		return unvs.toList();
 	}
-
+	
 	@GetMapping("/universities/{id}")
 	public ResponseEntity<?> getById(@PathVariable String id) {
 		Map<String, Object> response = new HashMap<>();
@@ -71,12 +81,12 @@ public class UniversityRestController {
 			response.put("errors", e.getMessage() + ": " + e.getMostSpecificCause().getMessage());
 			return new ResponseEntity<Map<String, Object>>(response, HttpStatus.INTERNAL_SERVER_ERROR);
 		}
-		
+
 		if (unvFound == null) {
 			response.put("message", "Data not found");
 			return new ResponseEntity<Map<String, Object>>(response, HttpStatus.NOT_FOUND);
 		}
-		
+
 		try {
 			unvFound.setAcronym(university.getAcronym());
 			unvFound.setAddress(university.getAddress());
@@ -96,15 +106,15 @@ public class UniversityRestController {
 			response.put("errors", e.getMessage());
 			return new ResponseEntity<Map<String, Object>>(response, HttpStatus.INTERNAL_SERVER_ERROR);
 		}
-		
+
 		if (unvUpdated == null) {
 			response.put("message", "Data not found");
 			return new ResponseEntity<Map<String, Object>>(response, HttpStatus.NOT_FOUND);
 		}
-		
+
 		return new ResponseEntity<University>(unvUpdated, HttpStatus.OK);
 	}
-	
+
 	@DeleteMapping("/universities/{id}")
 	public ResponseEntity<?> delete(@PathVariable String id) {
 		Map<String, Object> response = new HashMap<>();
@@ -116,13 +126,12 @@ public class UniversityRestController {
 			response.put("errors", e.getMessage() + ": " + e.getMostSpecificCause().getMessage());
 			return new ResponseEntity<Map<String, Object>>(response, HttpStatus.INTERNAL_SERVER_ERROR);
 		}
-		
+
 		if (unvFound == null) {
 			response.put("message", "Data not found");
 			return new ResponseEntity<Map<String, Object>>(response, HttpStatus.NOT_FOUND);
 		}
-		
-		
+
 		try {
 			this.univsService.delete(id);
 		} catch (Exception e) {
